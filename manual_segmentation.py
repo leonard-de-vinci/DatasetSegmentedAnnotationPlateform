@@ -478,34 +478,9 @@ class ManualSegmentation:
                 self._save()
                 break
 
-    def reorder(self, x_dir_new, y_dir_new):
-        c = 1
-        for n in range(len(self._X_paths)):
-            # get the image
-            X = cv2.imread(self._X_paths[n])
-            # get its name
-            name = self._X_paths[n].split('\\')[-1].split('.')[0]
-            # get its according target path if it exists
-            y_path = glob.glob(os.path.join(self._Y_dir, name + '.npy'))
-            # it the target is already known, load it, else set it to an empty matrix
-            print(name, y_path, c)
-            if len(y_path):
-                y = np.load(y_path[0]).astype(np.bool)
-            else:
-                y = np.zeros((*self._X.shape[:2], self._n_class)).astype(np.bool)
-            cv2.imwrite(os.path.join(x_dir_new, str(c) + '.jpg'), X)
-            np.save(os.path.join(y_dir_new, str(c) + '.npy'), y.astype(np.bool))
-            c += 1
-
-
-
 if __name__ == '__main__':
     images_save_dir = 'train_images'
     targets_save_dir = 'train_targets'
     targets_config_path = 'targets_config.csv'
     ms = ManualSegmentation(images_save_dir, targets_save_dir, 4, config_save_path=targets_config_path)
     ms.run()
-
-
-
-    #ms.reorder('save/train_images2', 'save/train_targets2')
