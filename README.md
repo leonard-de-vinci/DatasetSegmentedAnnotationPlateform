@@ -4,22 +4,16 @@ In this version, images must be in .jpg format and the target array in the .npy 
 
 ![screen.png](screen.png)
 
-Download the requirements
+## Download the requirements
 
 ```console
 foo@bar:~$ pip install -r requirements.txt
 ```
 
+## Config file description
+
 Build your config.csv file to parameter your different classes
 
-| class | bgr_color  | type |
-| :---:   | :-: | :-: |
-| Cue Stick | #004080 | 0 |
-| Red Ball | #0000FF | 2 |
-| Yellow Ball | #00FFFF | 2 |
-| Black Ball | #999999 | 2 |
-
-The steps are straightforward :
 - class column : name of the class you want to define
 - bgr_color column : the color you wnat to display your class in BGR format
 - type : the type of drawing 
@@ -28,15 +22,21 @@ The steps are straightforward :
   - 2 : draw filled circles by selecting two point on it
   - 3 or plus : draw a polygone with defined number of countour points (Automatically validate when the number of point reached)
 
+| class | bgr_color  | type |
+| :---:   | :-: | :-: |
+| Cue Stick | #004080 | 0 |
+| Red Ball | #0000FF | 2 |
+| Yellow Ball | #00FFFF | 2 |
+| Black Ball | #999999 | 2 |
 
-Run the interface
+## Run the interface
 
 ```console
 foo@bar:~$ python train_sample target_sample config.csv
 ```
 
 
-**COMMANDS**
+## COMMANDS
 
 - Left button pressed on image area : reference a point on the current class channel
 - Rigth button (kept) pressed : erase with the brush on the current class channel
