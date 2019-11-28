@@ -1,6 +1,5 @@
 # ManualSegmentationInterface
-Python interface to manually segment a dataset 
-In this version, images must be in .jpg format and the target array in the .npy format.
+Python interface to manually segment a dataset. In this version, images must be in .jpg format and the target array in the .npy format.
 
 ![screen.png](screen.png)
 
