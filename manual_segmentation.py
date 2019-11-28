@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-{Description}
+User friendly interface to manually segment images
 """
 
 __author__ = 'Axel Thevenot'
@@ -10,22 +10,30 @@ __version__ = '1.4.0'
 __maintainer__ = 'Axel Thevenot'
 __email__ = 'axel.thevenot@edu.devinci.fr'
 
+import os
+import glob
+import argparse
 
 import cv2
 import numpy as np
-import glob
-import os
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("x_save_dir", help="Train images directory")
+parser.add_argument("y_save_dir", help="Target images directory")
+parser.add_argument("config_path", help="Path to csv config file")
+args = parser.parse_args()
+
 
 
 class ManualSegmentation:
     """Class to manullay segment the dataset"""
 
-    def __init__(self, x_save_dir, y_save_dir, n_class, config_save_path=None):
+    def __init__(self, x_save_dir, y_save_dir, config_save_path):
         """
         Init the manual segmentation gui
         :param x_save_dir: directory path of the training images
         :param y_save_dir: directory path of the training targets
-        :param n_class: number of class into the targets
         :param config_save_path: save to the csv that describe the targets
         """
         # paths of training images
@@ -38,12 +46,9 @@ class ManualSegmentation:
         self._channel = 0
         # current X and Y to deal with
         self._X, self._Y = None, None
-        # number of class which are contained in the target matrix
-        self._n_class = n_class
 
-        # Get the config save path and load it
-        self._config_path = config_save_path
-        self._load_config()
+        # load the config save pah
+        self._load_config(config_save_path)
 
         # load a training images and its target
         self._load()
@@ -64,29 +69,28 @@ class ManualSegmentation:
         # Switch between zoom
         self._zoom_factor = 3
 
-    def _load_config(self):
+    def _load_config(self, path):
         """
         Load the config of the targets if the path is given
+        :param path: path to the config
         """
-        if self._config_path is not None and os.path.exists(self._config_path):
+        if os.path.exists(path):
             # get config of the targets as a str matrix
-            config = np.genfromtxt(self._param_path, delimiter=',', dtype=np.str, comments='---')
+            config = np.genfromtxt(path, delimiter=',', dtype=np.str, comments='---')
             # convert to a dictionary
-            config = {column[0]: np.array(column[1:]) for _, column in enumerate(zip(*params))}
+            config = {column[0]: np.array(column[1:]) for _, column in enumerate(zip(*config))}
             # load the type into an integer
             self._types = np.array([int(value) for value in config['type']])
             # load the hexadecimal BGR color
             self._colors = config['bgr_color']
             # load the name of the different classes
             self._classes = config['class']
+            # Get the number of _classes
+            self._n_class = len(self._classes)
         else:
-            # arbitrarily set the types to 0
-            self._types = np.zeros(self._n_class)
-            # randomly choose the colors
-            hexadecimal_characters = np.array(['2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'])
-            self._colors = ['#' + ''.join(np.random.choice(hexadecimal_characters, 6)) for _ in range(self._n_class)]
-            # arbitrarily set the in-order names
-            self._classes = ['Class ' + str(i) for i in range(self._n_class)]
+            print(f'The path {path} does not exist')
+
+
 
     def _click_event(self, event, x, y, flags, param):
         """
@@ -97,9 +101,7 @@ class ManualSegmentation:
         :param flags: flags of the event
         :param param: param of the event
         """
-        # may be useful
-        if param is not None:
-            pass
+
         # if the right button is pressed we are able to erase the current channel in the target with a square brush
         if event == cv2.EVENT_RBUTTONDOWN:
             self._r_dragged = True
@@ -479,8 +481,5 @@ class ManualSegmentation:
                 break
 
 if __name__ == '__main__':
-    images_save_dir = 'train_images'
-    targets_save_dir = 'train_targets'
-    targets_config_path = 'targets_config.csv'
-    ms = ManualSegmentation(images_save_dir, targets_save_dir, 4, config_save_path=targets_config_path)
+    ms = ManualSegmentation(args.x_save_dir, args.y_save_dir, args.config_path)
     ms.run()
