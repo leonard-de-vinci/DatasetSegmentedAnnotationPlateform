@@ -450,7 +450,7 @@ class ManualSegmentation:
             # Continuously wait for a pressed key
             key = cv2.waitKeyEx(1)
             # activate/deactivate the zoom in the gui and its factor
-            if key == ord("z"):
+            if key == ord("z") or key == ord("Z"):
                 # Switch between zoom factors
                 self._zoom_factor = 1 + self._zoom_factor % 5
             # if the enter key is pressed for a potential unlimited contour target, draw it from references points
@@ -475,7 +475,7 @@ class ManualSegmentation:
                 time.sleep(0.2)
                 self._delete()
             # exit the gui if the 'q' key is pressed
-            elif key == ord("q"):
+            elif key == ord("q") or key == ord("Q"):
                 # think to save before to quit
                 self._save()
                 break
