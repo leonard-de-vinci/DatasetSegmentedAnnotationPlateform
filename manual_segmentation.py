@@ -20,20 +20,20 @@ import os
 class ManualSegmentation:
     """Class to manullay segment the dataset"""
 
-    def __init__(self, x_save_dir, y_save_dir, n_class, parameters_save_path=None):
+    def __init__(self, x_save_dir, y_save_dir, n_class, config_save_path=None):
         """
         Init the manual segmentation gui
         :param x_save_dir: directory path of the training images
         :param y_save_dir: directory path of the training targets
         :param n_class: number of class into the targets
-        :param parameters_save_path: save to the csv that describe the targets
+        :param config_save_path: save to the csv that describe the targets
         """
         # paths of training images
         self._X_paths = sorted(glob.glob(os.path.join(x_save_dir, '*.jpg')), key=lambda k: len(k))
         # directory of the targets
         self._Y_dir = y_save_dir
         # current index of paths's list
-        self._n = 930 - 1
+        self._n = 0
         # current channel of the target matrix
         self._channel = 0
         # current X and Y to deal with
@@ -41,9 +41,9 @@ class ManualSegmentation:
         # number of class which are contained in the target matrix
         self._n_class = n_class
 
-        # Get the parameters save path and load it
-        self._param_path = parameters_save_path
-        self._load_parameters()
+        # Get the config save path and load it
+        self._config_path = config_save_path
+        self._load_config()
 
         # load a training images and its target
         self._load()
@@ -64,21 +64,21 @@ class ManualSegmentation:
         # Switch between zoom
         self._zoom_factor = 3
 
-    def _load_parameters(self):
+    def _load_config(self):
         """
-        Load the parameters of the targets if the path is given
+        Load the config of the targets if the path is given
         """
-        if self._param_path is not None and os.path.exists(self._param_path):
-            # get parameters of the targets as a str matrix
-            params = np.genfromtxt(self._param_path, delimiter=',', dtype=np.str, comments='---')
+        if self._config_path is not None and os.path.exists(self._config_path):
+            # get config of the targets as a str matrix
+            config = np.genfromtxt(self._param_path, delimiter=',', dtype=np.str, comments='---')
             # convert to a dictionary
-            params = {column[0]: np.array(column[1:]) for _, column in enumerate(zip(*params))}
+            config = {column[0]: np.array(column[1:]) for _, column in enumerate(zip(*params))}
             # load the type into an integer
-            self._types = np.array([int(value) for value in params['type']])
+            self._types = np.array([int(value) for value in config['type']])
             # load the hexadecimal BGR color
-            self._colors = params['bgr_color']
+            self._colors = config['bgr_color']
             # load the name of the different classes
-            self._classes = params['class']
+            self._classes = config['class']
         else:
             # arbitrarily set the types to 0
             self._types = np.zeros(self._n_class)
@@ -500,10 +500,10 @@ class ManualSegmentation:
 
 
 if __name__ == '__main__':
-    images_save_dir = 'save/train_images'
-    targets_save_dir = 'save/train_targets'
-    targets_parameters_path = 'save/targets_parameters/targets_parameters.csv'
-    ms = ManualSegmentation(images_save_dir, targets_save_dir, 4, parameters_save_path=targets_parameters_path)
+    images_save_dir = 'train_images'
+    targets_save_dir = 'train_targets'
+    targets_config_path = 'targets_config.csv'
+    ms = ManualSegmentation(images_save_dir, targets_save_dir, 4, config_save_path=targets_config_path)
     ms.run()
 
 
