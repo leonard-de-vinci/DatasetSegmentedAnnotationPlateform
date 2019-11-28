@@ -1,0 +1,5 @@
+class,bgr_color,type
+Cue Stick,#004080,0
+Red Ball,#0000FF,2
+Yellow Ball,#00FFFF,2
+Black Ball,#999999,2
