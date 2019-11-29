@@ -31,13 +31,14 @@ Build your config.csv file to parameter your different classes
 ## Run the interface
 
 ```console
-foo@bar:~$ python train_sample target_sample config.csv
+foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
 ```
 
 
 ## COMMANDS
 
 - Left button pressed on image area : reference a point on the current class channel
+- Return button : Undo the last reference point
 - Rigth button (kept) pressed : erase with the brush on the current class channel
 - Middle mouse scroll : navigate between class channels
 - Middle mouse pressed and scroll : navigate between samples
