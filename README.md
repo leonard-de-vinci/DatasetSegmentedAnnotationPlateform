@@ -19,7 +19,7 @@ Build your config.csv file to parameter your different classes
   - **0 :** draw a polygone area by placing countour points (Then press enter to validate)
   - **1 :** pixel by pixel drawing
   - **2 :** draw filled circles by selecting two point on it
-  - **3 or plus :** draw a polygone with defined number of countour points (Automatically validate when the number of point reached)
+  - **3 or plus :** draw a polygone with defined number of countour points (Automatically validate at the number of points)
 
 | **class | bgr_color  | type** |
 | :---:   | :-: | :-: |
