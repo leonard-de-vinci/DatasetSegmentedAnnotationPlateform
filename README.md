@@ -45,7 +45,7 @@ foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
 - ← or ↓ arrow : go to the previous sample
 - → or ↑ arrow : go to the next sample
 - Suppr : Delete the current sample
-- Z button : navigate between zoom mode (No zoom, x2, x3, x4, x5)
+- Z button : navigate between zoom modes (No zoom, x2, x3, x4, x5)
 - Q button : Exit
 
 
