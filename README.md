@@ -21,6 +21,8 @@ Build your config.csv file to parameter your different classes
   - **2 :** draw filled circles by selecting two point on it
   - **3 or plus :** draw a polygone with defined number of countour points (Automatically validate at the number of points)
 
+My config.cvs file to segment a pool table environment is the following
+
 | **class** | **bgr_color**  | **type** |
 | :---:   | :-: | :-: |
 | Cue Stick | #004080 | 0 |
