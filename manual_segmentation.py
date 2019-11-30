@@ -361,7 +361,18 @@ class ManualSegmentation:
         # apply a filter to see th training image behind the colorized training target matrix
         alpha = 0.3
         y_img = cv2.addWeighted(x_img, alpha, y_img, 1 - alpha, 0)
-
+        
+        # draw the diameter of the circle if it is the channel mode type and there is one ref point
+        if self._types[self._channel]  == len(self._ref_p) + 1 == 2:
+            [p1], p2 = self._ref_p, self._mouse_pos
+            print(self._ref_p, self._mouse_pos)
+            print(p1, p2)
+            # get the center of the circle and its radius according to the two bordered selected points
+            cx = (p1[0] + p2[0]) // 2
+            cy = (p1[1] + p2[1]) // 2
+            r = ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5 / 2
+            cv2.circle(x_img, (cx, cy), int(r), color, 1)
+        
         # draw each reference points
         for pt in self._ref_p:
             cv2.circle(x_img, tuple(pt), 2, color, cv2.FILLED)
