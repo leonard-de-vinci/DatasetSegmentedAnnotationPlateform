@@ -1,4 +1,4 @@
-class,bgr_color,type
+class,bgr_color,shape
 Cue Stick,#004080,0
 Red Ball,#0000FF,2
 Yellow Ball,#00FFFF,2
