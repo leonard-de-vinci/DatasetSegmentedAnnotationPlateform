@@ -19,9 +19,9 @@ import numpy as np
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("x_save_dir", help="Train images directory")
-parser.add_argument("y_save_dir", help="Target images directory")
-parser.add_argument("config_path", help="Path to csv config file")
+parser.add_argument('x_save_dir', help='Train images directory')
+parser.add_argument('y_save_dir', help='Target images directory')
+parser.add_argument('config_path', help='Path to csv config file')
 args = parser.parse_args()
 
 
@@ -31,17 +31,19 @@ class objectview(object):
 
 
 keys = {
-    "next_channel": ord("e"),
-    "previous_channel": ord("d"),
-    "next_image": ord("f"),
-    "previous_image": ord("s"),
-    "zoom": ord("z"),
-    "validate": 13,
-    "undo": ord("u"),
-    "brush": ord("b"),
-    "delete": 8,
-    "quit": ord("q"),
+    'next_channel': ord('e'),           # ASCII number = 101
+    'previous_channel': ord('d'),       # ASCII number = 100
+    'next_image': ord('f'),             # ASCII number = 102
+    'previous_image': ord('s'),         # ASCII number = 115
+    'zoom': ord('z'),                   # ASCII number = 122
+    'validate': 13,                     # ASCII number = 13
+    'undo': ord('u'),                   # ASCII number = 117
+    'brush': ord('b'),                  # ASCII number = 98
+    'delete': 8,                        # ASCII number = 8
+    'quit': ord('q')                    # ASCII number = 113
 }
+
+# to transform the dictionary into an object
 keys = objectview(keys)
 
 
@@ -58,8 +60,8 @@ class ManualSegmentation:
         """
         # number of _classes
         self.n_class = None
-        # types of draw of the different classes
-        self.types = None
+        # shapes of draw of the different classes
+        self.shapes = None
         # hexadecimal BGR color of the different classes
         self.colors = None
         # name of the different classes
@@ -111,12 +113,12 @@ class ManualSegmentation:
                 column[0]: np.array(column[1:])
                 for _, column in enumerate(zip(*config))
             }
-            # load the type into an integer
-            self.types = np.array([int(value) for value in config["type"]])
+            # load the shapes into an integer
+            self.shapes = np.array([int(value) for value in config['shape']])
             # load the hexadecimal BGR color
-            self.colors = config["bgr_color"]
+            self.colors = config['bgr_color']
             # load the name of the different classes
-            self.class_names = config["class"]
+            self.class_names = config['class']
             # Get the number of _classes
             self.n_class = len(self.class_names)
         else:
@@ -219,8 +221,8 @@ class ManualSegmentation:
                 # erase the activated pixels in the channel
                 if self.brush:
                     self.set_brush_eraser()
-                # else draw pixel if  it is `pixel by pixel` draw type
-                elif self.types[self.channel] == 1:
+                # else draw pixel if  it is `pixel by pixel` draw shape
+                elif self.shapes[self.channel] == 1:
                     self.set_pixel()
 
         if event == cv2.EVENT_LBUTTONUP:
@@ -234,26 +236,26 @@ class ManualSegmentation:
                 self.set_brush_eraser()
             # check if the click is inside the image
             elif 0 <= x < self.X.shape[1] and 0 <= y < self.X.shape[0]:
-                # check if it is a pixel by pixel draw type
-                if self.types[self.channel] == 1:
+                # check if it is a pixel by pixel draw shape
+                if self.shapes[self.channel] == 1:
                     self.set_pixel()
                 else:
                     # append the current point to the history
                     self.ref_p.append([x, y])
-                    # check if the channel is an unlimited contour type
-                    if self.types[self.channel]:
-                        # check if the channel is a circle draw type
+                    # check if the channel is an unlimited contour shape
+                    if self.shapes[self.channel]:
+                        # check if the channel is a circle draw shape
                         # and if the two points are given
-                        if self.types[self.channel] == len(self.ref_p) == 2:
+                        if self.shapes[self.channel] == len(self.ref_p) == 2:
                             self.set_circle()
                         # else wait to reach the number of references points
-                        # given by the type of the channel
-                        elif self.types[self.channel] == len(self.ref_p):
+                        # given by the shape of the channel
+                        elif self.shapes[self.channel] == len(self.ref_p):
                             self.set_poly()
 
     def set_pixel(self):
         """
-        Set value to 1 at the mouse position in the case of `1` draw type
+        Set value to 1 at the mouse position in the case of `1` draw shape
         """
         # draw the pixel according at the mouse position
         x, y = self.mouse_pos
@@ -552,9 +554,9 @@ class ManualSegmentation:
         for pt in self.ref_p:
             cv2.circle(x_img, tuple(pt), 2, color, cv2.FILLED)
 
-        # draw the diameter of the circle if it is the channel mode type
+        # draw the diameter of the circle if it is the channel mode shape
         # and there is one ref point
-        if self.types[self.channel] == 2 and len(self.ref_p):
+        if self.shapes[self.channel] == 2 and len(self.ref_p):
             self.draw_circle_visualization(x_img, y_img, color)
 
         # draw the brush if the right mouse button is pressed
@@ -594,7 +596,7 @@ class ManualSegmentation:
                 self.zoom_factor = 1 + self.zoom_factor % 5
             # if the enter key is pressed for an unlimited contour target
             # draw it from references points
-            if key == keys.validate and not self.types[self.channel]:
+            if key == keys.validate and not self.shapes[self.channel]:
                 self.set_poly()
             # remove the last reference point by pressing the return key
             elif key == keys.undo:
@@ -627,6 +629,4 @@ class ManualSegmentation:
 if __name__ == "__main__":
     ms = ManualSegmentation(args.x_save_dir, args.y_save_dir, args.config_path)
     ms.run()
-
-
 
