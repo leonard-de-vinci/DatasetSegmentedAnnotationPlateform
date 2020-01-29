@@ -6,7 +6,7 @@ User friendly interface to manually segment images
 """
 
 __author__ = 'Axel Thevenot'
-__version__ = '1.4.0'
+__version__ = '2.1.0'
 __maintainer__ = 'Axel Thevenot'
 __email__ = 'axel.thevenot@edu.devinci.fr'
 
@@ -25,6 +25,26 @@ parser.add_argument("config_path", help="Path to csv config file")
 args = parser.parse_args()
 
 
+class objectview(object):
+    def __init__(self, d):
+        self.__dict__ = d
+
+
+keys = {
+    "next_channel": ord("e"),
+    "previous_channel": ord("d"),
+    "next_image": ord("f"),
+    "previous_image": ord("s"),
+    "zoom": ord("z"),
+    "validate": 13,
+    "undo": ord("u"),
+    "brush": ord("b"),
+    "delete": 8,
+    "quit": ord("q"),
+}
+keys = objectview(keys)
+
+
 
 class ManualSegmentation:
     """Class to manullay segment the dataset"""
@@ -36,63 +56,151 @@ class ManualSegmentation:
         :param y_save_dir: directory path of the training targets
         :param config_save_path: save to the csv that describe the targets
         """
-        # paths of training images
-        self._X_paths = sorted(glob.glob(os.path.join(x_save_dir, '*.jpg')), key=lambda k: len(k))
+        # number of _classes
+        self.n_class = None
+        # types of draw of the different classes
+        self.types = None
+        # hexadecimal BGR color of the different classes
+        self.colors = None
+        # name of the different classes
+        self.class_names = None
+        # load the config save path to fill the attributes above
+        self.load_config(config_save_path)
+
+        # paths of training images sorted by their ID number
+        self.X_paths = glob.glob(os.path.join(x_save_dir, "*.jpg"))
+        self.X_paths = sorted(self.X_paths, key=lambda k: (len(k), k))
         # directory of the targets
-        self._Y_dir = y_save_dir
+        self.Y_dir = y_save_dir
         # current index of paths's list
-        self._n = 0
+        self.n = 0
         # current channel of the target matrix
-        self._channel = 0
-        # current X and Y to deal with
-        self._X, self._Y = None, None
-
-        # load the config save pah
-        self._load_config(config_save_path)
-
+        self.channel = 0
+        # current X (training) and Y (target) to deal with
+        self.X, self.Y = None, None
         # load a training images and its target
-        self._load()
+        self.load()
 
         # Init the variables to manually interact with the window
         # reference point memory list
-        self._ref_p = []
-        # right mouse button
-        self._r_dragged = False
-        # left mouse button
-        self._l_dragged = False
-        # middle mouse button
-        self._m_dragged = False
+        self.ref_p = []
+        # activation of the eraser
+        self.brush = False
         # brush size to erase manually
-        self._brush_size = 20
-        # current mouse position
-        self._mouse_pos = [-1, -1]
-        # Switch between zoom
-        self._zoom_factor = 3
+        self.brush_size = 20
 
-    def _load_config(self, path):
+        # current mouse position
+        self.mouse_pos = [0, 0]
+        # left mouse button is pressed
+        self.l_pressed = False
+        # Switch between zoom
+        self.zoom_factor = 3
+
+    def load_config(self, path):
         """
         Load the config of the targets if the path is given
         :param path: path to the config
         """
         if os.path.exists(path):
             # get config of the targets as a str matrix
-            config = np.genfromtxt(path, delimiter=',', dtype=np.str, comments='---')
+            config = np.genfromtxt(
+                path, delimiter=",", dtype=np.str, comments=None
+            )
             # convert to a dictionary
-            config = {column[0]: np.array(column[1:]) for _, column in enumerate(zip(*config))}
+            config = {
+                column[0]: np.array(column[1:])
+                for _, column in enumerate(zip(*config))
+            }
             # load the type into an integer
-            self._types = np.array([int(value) for value in config['type']])
+            self.types = np.array([int(value) for value in config["type"]])
             # load the hexadecimal BGR color
-            self._colors = config['bgr_color']
+            self.colors = config["bgr_color"]
             # load the name of the different classes
-            self._classes = config['class']
+            self.class_names = config["class"]
             # Get the number of _classes
-            self._n_class = len(self._classes)
+            self.n_class = len(self.class_names)
         else:
-            print(f'The path {path} does not exist')
+            print(f"The path {path} does not exist")
+
+    def load(self):
+        """
+        Load the current image and its target
+        """
+        # get the input image
+        self.X = cv2.imread(self.X_paths[self.n])
+
+        # get the target image
+        # get its name removing folders in the X path anoted with `//` or `\`
+        file_name = self.X_paths[self.n].split("\\")[-1].split("/")[-1]
+        # split by the `.` to remove the extension to get the name
+        name = file_name.split(".")[0]
+        # get its according target path if it exists
+        y_path = glob.glob(os.path.join(self.Y_dir, name + ".npy"))
+
+        # if the target is already existing, load it
+        if len(y_path):
+            self.Y = np.load(y_path[0])
+        # else set it to an empty matrix (full of zeros)
+        else:
+            self.Y = np.zeros((*self.X.shape[:2], self.n_class))
 
 
+    def save(self):
+        """
+        Save the current target matrix
+        """
+        # get its name by removing folders in the path anoted with `//` or `\`
+        file_name = self.X_paths[self.n].split("\\")[-1].split("/")[-1]
+        # split by the `.` to remove the extension to get the name
+        name = file_name.split(".")[0]
+        # convert to boolean to gain space
+        self.Y = self.Y.astype(np.bool)
+        # save it
+        np.save(os.path.join(self.Y_dir, name + ".npy"), self.Y)
 
-    def _click_event(self, event, x, y, flags, param):
+    def delete(self):
+        """
+        Delete the current image and its target
+        """
+        path_to_remove = self.X_paths.pop(self.n)
+        os.remove(path_to_remove)
+        # get the target's name
+        name = path_to_remove.split("\\")[-1].split("/")[-1].split(".")[0]
+        # get its according target path if it exists
+        y_path = glob.glob(os.path.join(self.Y_dir, name + ".npy"))
+        # it the target exists, delete it
+        if len(y_path):
+            os.remove(y_path[0])
+        # actualize the current image index
+        self.n = self.n % len(self.X_paths)
+        # load the new current training sample
+        self.load()
+
+    def update_image(self, increment=0):
+        """
+        Update the current image
+        :param increment: direction to update
+        """
+        # save the previous one and its target
+        self.save()
+        # update the index of the image
+        self.n = (self.n + increment) % len(self.X_paths)
+        # load the new current image
+        self.load()
+        # remove the potential references points
+        self.ref_p = []
+
+    def update_channel(self, increment=0):
+        """
+        Update the current channel
+        :param increment: direction to update
+        """
+        # update the index of the current channel
+        self.channel = (self.channel + increment) % self.n_class
+        # remove the potential references points
+        self.ref_p = []
+
+    def click_event(self, event, x, y, flags, param):
         """
         Able to the user to manually interact with the images and their target
         :param event: event raised from the mouse
@@ -102,176 +210,127 @@ class ManualSegmentation:
         :param param: param of the event
         """
 
-        # if the right button is pressed we are able to erase the current channel in the target with a square brush
-        if event == cv2.EVENT_RBUTTONDOWN:
-            self._r_dragged = True
-            # get the true x coordinate
-            x = x % self._X.shape[1]
-            # erase the current target channel according to the brush position (mouse)
-            for dx in range(-self._brush_size, self._brush_size + 1):
-                for dy in range(-self._brush_size, self._brush_size + 1):
-                    if 0 <= x + dx < self._Y.shape[1] and 0 <= y + dy < self._Y.shape[0]:
-                        self._Y[y + dy, x + dx, self._channel] = 0
-
-        # if the right button is released, we can't erase anymore
-        if event == cv2.EVENT_RBUTTONUP:
-            self._r_dragged = False
-
-        # if the middle button is pressed, the scroll of training images/targets is activated
-        # else the scroll of target channel is activated
-        if event == cv2.EVENT_MBUTTONDOWN:
-            self._m_dragged = True
-        if event == cv2.EVENT_MBUTTONUP:
-            self._m_dragged = False
-
-        # mouse wheel event to navigate between the channels and the samples according to if it is pressed or not
-        if event == cv2.EVENT_MOUSEWHEEL:
-            if self._m_dragged:
-                self._update_image(2 * (flags > 0) - 1)
-            else:
-                self._update_channel(2 * (flags > 0) - 1)
-
-        # left button released
-        if event == cv2.EVENT_LBUTTONUP:
-            self._l_dragged = False
-
         # mouse move
         if event == cv2.EVENT_MOUSEMOVE:
             # update mouse position
-            self._mouse_pos = [x, y]
-            # activate the current pixel if the left button is pressed and the channel is a pixel by pixel draw type
-            if self._l_dragged and self._types[self._channel] == 1:
-                self._Y[y, x, self._channel] = 1
-            # erase the activated pixels in the channel around the brush if the right button is pressed
-            if self._r_dragged:
-                x = x % self._X.shape[1]
-                for dx in range(-self._brush_size, self._brush_size + 1):
-                    for dy in range(-self._brush_size, self._brush_size + 1):
-                        if 0 <= x + dx < self._Y.shape[1] and 0 <= y + dy < self._Y.shape[0]:
-                            self._Y[y + dy, x + dx, self._channel] = 0
+            self.mouse_pos = [x, y]
+            # check if the left button is pressed to have an action
+            if self.l_pressed:
+                # erase the activated pixels in the channel
+                if self.brush:
+                    self.set_brush_eraser()
+                # else draw pixel if  it is `pixel by pixel` draw type
+                elif self.types[self.channel] == 1:
+                    self.set_pixel()
+
+        if event == cv2.EVENT_LBUTTONUP:
+            self.l_pressed = False
 
         # left button pressed
         if event == cv2.EVENT_LBUTTONDOWN:
-            self._l_dragged = True
+            self.l_pressed = True
+            # check if the brush eraser is activated
+            if self.brush:
+                self.set_brush_eraser()
             # check if the click is inside the image
-            if 0 <= x < self._X.shape[1] and 0 <= y < self._X.shape[0]:
+            elif 0 <= x < self.X.shape[1] and 0 <= y < self.X.shape[0]:
                 # check if it is a pixel by pixel draw type
-                if self._types[self._channel] == 1:
-                    self._Y[y, x, self._channel] = 1
+                if self.types[self.channel] == 1:
+                    self.set_pixel()
                 else:
                     # append the current point to the history
-                    self._ref_p.append([x, y])
-                    # check if the channel is not a potential unlimited contour type
-                    if self._types[self._channel]:
-                        # check if the channel is a circle draw type to draw it if the two points are given
-                        if self._types[self._channel] == len(self._ref_p) == 2:
-                            self._draw_circle()
-                        # else wait to reach the number of references points given by the type of the channel
-                        elif self._types[self._channel] == len(self._ref_p):
-                            self._draw_poly()
+                    self.ref_p.append([x, y])
+                    # check if the channel is an unlimited contour type
+                    if self.types[self.channel]:
+                        # check if the channel is a circle draw type
+                        # and if the two points are given
+                        if self.types[self.channel] == len(self.ref_p) == 2:
+                            self.set_circle()
+                        # else wait to reach the number of references points
+                        # given by the type of the channel
+                        elif self.types[self.channel] == len(self.ref_p):
+                            self.set_poly()
 
-    def _draw_poly(self):
+    def set_brush_eraser(self):
+        # get the mouse position on the image
+        x, y = self.mouse_pos
+        x = x % self.X.shape[1]
+        # erase by shifting index and set the pixels to zero
+        for dx in range(-self.brush_size, self.brush_size + 1):
+            for dy in range(-self.brush_size, self.brush_size + 1):
+                # continue if the point is not in the image
+                if not 0 <= x + dx < self.Y.shape[1]:
+                    continue
+                if not 0 <= y + dy < self.Y.shape[0]:
+                    continue
+                self.Y[y + dy, x + dx, self.channel] = 0
+
+    def set_pixel(self):
+        # draw the pixel according at the mouse position
+        x, y = self.mouse_pos
+        self.Y[y, x, self.channel] = 1
+
+    def set_poly(self):
         """
         Draw a polynomial from the points given its contours
         """
-        # create a new mask
-        mask = np.zeros((*self._Y.shape[:2], 3))
-        # get the contours points
-        pts = np.array([[pt] for pt in self._ref_p])
-        # fill the contours in the mask as bitwise then get one channel
-        cv2.fillPoly(mask, pts=[pts], color=(1, 1, 1))
-        mask = mask[:, :, 0]
-        # update the segmented target
-        self._Y[:, :, self._channel] = np.array([[1 * (value or mask[i, j])
-                                                  for j, value in enumerate(l)]
-                                                 for i, l in enumerate(self._Y[:, :, self._channel])])
-        # remove the points
-        self._ref_p = []
+        if len(self.ref_p) > 1:
+            # create a new mask
+            mask = np.zeros((*self.Y.shape[:2], 3))
+            # get the contours points
+            pts = np.array([[pt] for pt in self.ref_p])
+            # fill the contours in the mask as bitwise then get one channel
+            cv2.fillPoly(mask, pts=[pts], color=(1, 1, 1))
+            mask = mask[:, :, 0]
+            mask = [[1 * (value or mask[i, j])
+                        for j, value in enumerate(l)]
+                            for i, l in enumerate(self.Y[:, :, self.channel])]
+            # update the segmented target
+            self.Y[:, :, self.channel] = np.array(mask)
+            # remove the points
+            self.ref_p = []
 
-    def _draw_circle(self):
+    def set_circle(self):
         """
-        Draw a circles with the two reference points in memory considering they form a diameter
+        Draw a circles with the two reference points in memory
+        considering they give us the diameter of the circle
         """
         # get the two references points in memory
-        p1, p2 = self._ref_p
-        # get the center of the circle and its radius according to the two bordered selected points
+        p1, p2 = self.ref_p
+        # get the center of the circle and its radius
+        # according to the two bordered selected points
         cx = (p1[0] + p2[0]) // 2
         cy = (p1[1] + p2[1]) // 2
         r = ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5 / 2
+        # get the mask of the circle
+        mask = [[1 * (value or ((j - cx) ** 2 + (i - cy) ** 2 < r ** 2))
+                    for j, value in enumerate(line)]
+                        for i, line in enumerate(self.Y[:, :, self.channel])]
         # draw the circle
-        self._Y[:, :, self._channel] = np.array([[1 * (value or ((j - cx) ** 2 + (i - cy) ** 2 < r ** 2))
-                                                  for j, value in enumerate(line)]
-                                                 for i, line in enumerate(self._Y[:, :, self._channel])])
+        self.Y[:, :, self.channel] = np.array(mask)
         # remove the points
-        self._ref_p = []
+        self.ref_p = []
 
-    def _save(self):
+    def draw_circle_visualization(self, x_img, y_img, color):
         """
-        Save the current target matrix
+        Draw the circle in the case of `2` draw typ to visiualize the circle
+        before to set the 2nd and last refernce point
+        :param x_img: input image
+        :param x_img: colorized target image
+        :param color: color of the current channel
         """
-        name = self._X_paths[self._n].split('\\')[-1].split('.')[0]
-        np.save(os.path.join(self._Y_dir, name + '.npy'), self._Y.astype(np.bool))
-
-    def _delete(self):
-        """
-        Delete the current image and its target
-        """
-        path_to_remove = self._X_paths.pop(self._n)
-        os.remove(path_to_remove)
-        # get the target's name
-        name = path_to_remove.split('\\')[-1].split('.')[0]
-        # get its according target path if it exists
-        y_path = glob.glob(os.path.join(self._Y_dir, name + '.npy'))
-        # it the target exists, delete it
-        if len(y_path):
-            os.remove(y_path[0])
-        # actualize the current image index
-        self._n = self._n % len(self._X_paths)
-        # load the new current training sample
-        self._load()
-
-    def _load(self):
-        """
-        Load the current image and its target
-        """
-        # get the image
-        self._X = cv2.imread(self._X_paths[self._n])
-        # get its name
-        name = self._X_paths[self._n].split('\\')[-1].split('.')[0]
-        # get its according target path if it exists
-        y_path = glob.glob(os.path.join(self._Y_dir, name + '.npy'))
-        # it the target is already known, load it, else set it to an empty matrix
-        if len(y_path):
-            self._Y = np.load(y_path[0]).astype(np.bool)
-        else:
-            self._Y = np.zeros((*self._X.shape[:2], self._n_class)).astype(np.bool)
-
-    def _update_image(self, increment=0):
-        """
-        Update the current image
-        :param increment: direction to update
-        """
-        # save the previous one and its target
-        self._save()
-        # update the index of the image
-        self._n = (self._n + increment) % len(self._X_paths)
-        # load the new current image
-        self._load()
-        # remove the potential references points
-        self._ref_p = []
-
-    def _update_channel(self, increment=0):
-        """
-        Update the current channel
-        :param increment: direction to update
-        """
-        # update the index of the current channel
-        self._channel = (self._channel + increment) % self._n_class
-        # remove the potential references points
-        self._ref_p = []
+        p1, p2 = self.ref_p[0], self.mouse_pos
+        # get the center of the circle and its radius
+        # according to the two bordered selected points
+        cx = (p1[0] + p2[0]) // 2
+        cy = (p1[1] + p2[1]) // 2
+        r = ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5 / 2
+        # draw the circle to visualize the rendered segmented circle
+        cv2.circle(x_img, (cx, cy), int(r), color, 1)
+        cv2.circle(y_img, (cx, cy), int(r), color, 1)
 
     @staticmethod
-    def _hex2tuple(value, normalize=False):
+    def hex2tuple(value, normalize=False):
         """
         Convert an hexadecimal color to its associated tuple
         :param value: value of the hexadecimal color
@@ -279,218 +338,286 @@ class ManualSegmentation:
         :return: tuple color
         """
         # get the hexadecimal value
-        value = value.lstrip('#')
+        value = value.lstrip("#")
         # get it length
         lv = len(value)
         # get the associated color in 0 to 255 base
-        color = np.array([int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3)])
+        color = np.array([int(value[i : i + lv // 3], 16)
+                            for i in range(0, lv, lv // 3)])
         # normalize it if needed
         if normalize:
             color = tuple(color / 255)
         return color
 
-    def _get_x_image(self):
+    def get_x_image(self):
         """
         Get the normalized training image
         :return: normalized image
         """
-        return (self._X - np.min(self._X)) / (np.max(self._X) - np.min(self._X))
+        return (self.X - np.min(self.X)) / (np.max(self.X) - np.min(self.X))
 
-    def _get_y_image(self):
+    def get_y_image(self):
         """
         Get the colorized target as an image
         :return: colorized target
         """
         # create a black background image
-        y_image = np.zeros((*self._Y.shape[:2], 3))
+        y_image = np.zeros((*self.Y.shape[:2], 3))
         # for each channel, set the color to the image according to its mask
-        for i, color in enumerate(self._colors):
+        for i, color in enumerate(self.colors):
             # get the the mask
-            mask = self._Y[:, :, i] > 0
+            mask = self.Y[:, :, i] > 0
             # update the colorized image
-            y_image[np.where(mask)] = self._hex2tuple(color, normalize=True)
+            y_image[np.where(mask)] = self.hex2tuple(color, normalize=True)
         return y_image
 
-    def _get_frame(self):
+    def get_params_image(self):
         """
-        Get the gui frame
-        :return: gui frame
+        Build the parameters bar to display information
+        at the bottom of the gui :
+            - The name of the current image at left
+            - The name and color of the current channel at right
+        :return: normalized image
         """
         # create the image to display the current parameters
-        params_img = np.ones((self._X.shape[0] // 10, self._X.shape[1] * 2, 3))
-
-        # set the training image name to the left side of the parameters image
+        params_img = np.ones((self.X.shape[0] // 10, self.X.shape[1] * 2, 3))
 
         # get its name
-        name = self._X_paths[self._n].split('\\')[-1]
+        name = self.X_paths[self.n].split("\\")[-1].split("/")[-1]
         # compute its height to center the text of the name and compute is fontsize
-        text = '{0} - ({1}/{2})'.format(name, self._n + 1, len(self._X_paths))
+        text = "{0} - ({1}/{2})".format(name, self.n + 1, len(self.X_paths))
         size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
         text_height = size[0][1]
         fontsize = (params_img.shape[0] / text_height) // 2
         # put the name of the image at left
-        cv2.putText(params_img,  text, (params_img.shape[0] // 2, params_img.shape[0] * 2 // 3),
-                    cv2.FONT_HERSHEY_SIMPLEX, fontsize, (0, 0, 0), 2)
+        cv2.putText(
+            params_img,
+            text,
+            (params_img.shape[0] // 2, params_img.shape[0] * 2 // 3),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            fontsize,
+            (0, 0, 0),
+            2,
+        )
 
         # set the current color's class to deal with at right
 
         # get the up left corner of the color legend rectangle
-        up_left = (params_img.shape[1] * 17 // 20, params_img.shape[0] * 1 // 4)
+        up_left = (
+            params_img.shape[1] * 17 // 20,
+            params_img.shape[0] * 1 // 4,
+        )
         # get the down right corner of the color legend rectangle
-        down_right = (params_img.shape[1] * 19 // 20, params_img.shape[0] * 3 // 4)
-        # get the associated color to the current channel
-        color = self._hex2tuple(self._colors[self._channel], normalize=True)
+        down_right = (
+            params_img.shape[1] * 19 // 20,
+            params_img.shape[0] * 3 // 4,
+        )
         # draw the rectangle to legend the current channel
+        color = self.hex2tuple(self.colors[self.channel], normalize=True)
         cv2.rectangle(params_img, up_left, down_right, color, cv2.FILLED)
         cv2.rectangle(params_img, up_left, down_right, (0, 0, 0), 2)
 
         # set the current name's class to deal with at the left of its color
 
         # get the name of the class
-        legend = self._classes[self._channel]
+        legend = self.class_names[self.channel]
         # compute its size to put it a the left of the colored rectangle
         size = cv2.getTextSize(legend, cv2.FONT_HERSHEY_SIMPLEX, fontsize, 2)
         # put the text
-        cv2.putText(params_img,  legend, (params_img.shape[1] * 16 // 20 - size[0][0], params_img.shape[0] * 2 // 3),
-                    cv2.FONT_HERSHEY_SIMPLEX, fontsize, (0, 0, 0), 2)
+        cv2.putText(
+            params_img,
+            legend,
+            (
+                params_img.shape[1] * 16 // 20 - size[0][0],
+                params_img.shape[0] * 2 // 3,
+            ),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            fontsize,
+            (0, 0, 0),
+            2,
+        )
+        return params_img
 
+    def draw_brush(self, x_img, y_img, color):
+        """
+        Draw the brush if activated on the images
+        :param x_img: input image
+        :param x_img: colorized target image
+        :param color: color of the current channel
+        """
+        # get the mouse position
+        mouse_x, mouse_y = self.mouse_pos
+        # update the current mouse position if it is on the target image
+        mouse_x = mouse_x % x_img.shape[1]
+        # set the two extremes border points of the brush
+        pt1 = (mouse_x - self.brush_size + 3, mouse_y - self.brush_size + 3)
+        pt2 = (mouse_x + self.brush_size - 3, mouse_y + self.brush_size - 3)
+        # draw it according to the current channel
+        cv2.rectangle(x_img, pt1, pt2, (0, 0, 0), 6)
+        cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 6)
+        cv2.rectangle(x_img, pt1, pt2, color, 4)
+        cv2.rectangle(y_img, pt1, pt2, color, 4)
+        cv2.rectangle(x_img, pt1, pt2, (0, 0, 0), 2)
+        cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 2)
+
+    def draw_zoom_window(self, x_img, y_img):
+        """
+        Draw the zoom window if activated on the input image
+        and draw its position on the target image
+        :param x_img: input image
+        :param x_img: colorized target image
+        """
+        # get the current mouse position
+        x, y = self.mouse_pos
+        # check the mouse is inside the image
+        if 0 <= x < x_img.shape[1] and 0 <= y < x_img.shape[0]:
+            # set a window to be zoomed according to a size
+            size = int(np.array(x_img.shape[1]) / self.zoom_factor / 10)
+            # set the rescaled size of the window according to the zoom factor
+            zoom_size = int(size * self.zoom_factor * 2)
+            # create a zero-like image to get the window to be zoom
+            zoom_img = np.zeros((2 * size, 2 * size, 3))
+            # set the pixel of the zoom image
+            for dx in range(-size, size):
+                for dy in range(-size, size):
+                    # continue if the point is not in the image
+                    if not 0 <= x + dx < x_img.shape[1]:
+                        continue
+                    if not 0 <= y + dy < x_img.shape[0]:
+                        continue
+                    zoom_img[size + dy, size + dx] = x_img[y + dy, x + dx]
+            # if the zoom window is shifting outside the image
+            sy_shift = max(0, zoom_size // 2 - y)
+            sx_shift = max(0, zoom_size // 2 - x)
+            ey_shift = max(0, +zoom_size // 2 + x - x_img.shape[1])
+            ex_shift = max(0, +zoom_size // 2 + y - x_img.shape[0])
+
+            # rescale the window according to the zoom factor
+            zoom_img = cv2.resize(zoom_img, (zoom_size, zoom_size))
+            # set black border to the zoom image
+            cv2.rectangle(
+                zoom_img, (0, 0), (zoom_size, zoom_size), (0, 0, 0), 3
+            )
+            # set the zoom image onto the concatenated training image/target
+            sx, sy = (
+                y - zoom_size // 2 + sy_shift,
+                x - zoom_size // 2 + sx_shift,
+            )
+            ex, ey = (
+                y + zoom_size // 2 - ex_shift,
+                x + zoom_size // 2 - ey_shift,
+            )
+            # superimpose the zoomed window to the input image
+            x_img[sx:ex, sy:ey] = zoom_img[
+                sy_shift:ex - sx + sy_shift, sx_shift:ey - sy + sx_shift
+            ]
+
+            # draw in the target image where the zoom takes placey
+            # get the two extremes corner points of the zoom window
+            pt1 = (x - size, y - size)
+            pt2 = (x + size, y + size)
+            # display the zoom image on the colorized target image
+            cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 3)
+            cv2.rectangle(y_img, pt1, pt2, (0.8, 0.8, 0.8), 2)
+            cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 1)
+
+    def get_frame(self):
+        """
+        Get the gui frame
+        :return: gui frame
+        """
         # get the current training image
-        x_img = self._get_x_image()
+        x_img = self.get_x_image()
         # get the colorized training target matrix
-        y_img = self._get_y_image()
-        # apply a filter to see th training image behind the colorized training target matrix
+        y_img = self.get_y_image()
+        # apply a filter to see the training image
+        # behind the colorized training target matrix
         alpha = 0.3
         y_img = cv2.addWeighted(x_img, alpha, y_img, 1 - alpha, 0)
-        
-        # draw the diameter of the circle if it is the channel mode type and there is one ref point
-        if self._types[self._channel]  == len(self._ref_p) + 1 == 2:
-            [p1], p2 = self._ref_p, self._mouse_pos
-            print(self._ref_p, self._mouse_pos)
-            print(p1, p2)
-            # get the center of the circle and its radius according to the two bordered selected points
-            cx = (p1[0] + p2[0]) // 2
-            cy = (p1[1] + p2[1]) // 2
-            r = ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5 / 2
-            cv2.circle(x_img, (cx, cy), int(r), color, 1)
-        
+
+        params_img = self.get_params_image()
+
+        # get the associated color to the current channel
+        color = self.hex2tuple(self.colors[self.channel], normalize=True)
+
         # draw each reference points
-        for pt in self._ref_p:
+        for pt in self.ref_p:
             cv2.circle(x_img, tuple(pt), 2, color, cv2.FILLED)
 
+        # draw the diameter of the circle if it is the channel mode type
+        # and there is one ref point
+        if self.types[self.channel] == 2 and len(self.ref_p):
+            self.draw_circle_visualization(x_img, y_img, color)
+
         # draw the brush if the right mouse button is pressed
-        if self._r_dragged:
-            # get the mouse position
-            mouse_x, mouse_y = self._mouse_pos
-            # update the current mouse position if it is on the target image
-            mouse_x = mouse_x % x_img.shape[1]
-            # set the two extremes border points of the brush
-            pt1 = (mouse_x - self._brush_size + 3, mouse_y - self._brush_size + 3)
-            pt2 = (mouse_x + self._brush_size - 3, mouse_y + self._brush_size - 3)
-            # draw it according to the current channel
-            cv2.rectangle(x_img, pt1, pt2, (0, 0, 0), 6)
-            cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 6)
-            cv2.rectangle(x_img, pt1, pt2, color, 4)
-            cv2.rectangle(y_img, pt1, pt2, color, 4)
-            cv2.rectangle(x_img, pt1, pt2, (0, 0, 0), 2)
-            cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 2)
+        if self.brush:
+            self.draw_brush(x_img, y_img, color)
 
         # if the zoom is activated
-        if self._zoom_factor > 1:
-            # get the current mouse position
-            x_mouse, y_mouse = self._mouse_pos
-            # check the mouse is inside the image
-            if 0 <= x_mouse < x_img.shape[1] and 0 <= y_mouse < x_img.shape[0]:
+        if self.zoom_factor > 1:
+            self.draw_zoom_window(x_img, y_img)
 
-                # set a window to be zoomed according to a size
-                size = int(np.array(x_img.shape[1]) / self._zoom_factor / 10)
-                # set the rescaled size of the window according to the zoom factor
-                zoom_size = int(size * self._zoom_factor * 2)
-                # create a zero-like image to get the window to be zoom
-                zoom_img = np.zeros((2 * size, 2 * size, 3))
-                # set the pixel to the zoom image if it exists
-                for dx in range(-size, size):
-                    for dy in range(-size, size):
-                        if 0 <= x_mouse + dx < x_img.shape[1] and 0 <= y_mouse + dy < x_img.shape[0]:
-                            zoom_img[size + dy, size + dx] = x_img[y_mouse + dy, x_mouse + dx]
-
-                # if it go outside the image
-                sy_shift = max(0, zoom_size // 2 - y_mouse)
-                sx_shift = max(0, zoom_size // 2 - x_mouse)
-                ey_shift = max(0, + zoom_size // 2 + x_mouse - x_img.shape[1])
-                ex_shift = max(0, + zoom_size // 2 + y_mouse - x_img.shape[0])
-
-                # rescale the window according to the zoom factor
-                zoom_img = cv2.resize(zoom_img, (zoom_size, zoom_size))
-                # set black border to the zoom image
-                cv2.rectangle(zoom_img, (0, 0), (zoom_size, zoom_size), (0, 0, 0), 3)
-                # set the zoom image onto the concatenated training image/target
-                sx, sy = y_mouse - zoom_size // 2 + sy_shift, x_mouse - zoom_size // 2 + sx_shift
-                ex, ey = y_mouse + zoom_size // 2 - ex_shift, x_mouse + zoom_size // 2 - ey_shift
-
-                # Set the zoomed window
-                x_img[sx:ex, sy:ey] = zoom_img[sy_shift:ex-sx+sy_shift, sx_shift:ey-sy+sx_shift]
-
-                # indicated in the target image where the zoom takes place to visualize easily
-                # get the two extremes corner points of the zoom window
-                pt1 = (x_mouse - size, y_mouse - size)
-                pt2 = (x_mouse + size, y_mouse + size)
-                # display the zoom image on the colorized target image
-                cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 3)
-                cv2.rectangle(y_img, pt1, pt2, (.8, .8, .8), 2)
-                cv2.rectangle(y_img, pt1, pt2, (0, 0, 0), 1)
-
-        # concatenate the training image and the colorized target image horizontally
+        # concatenate the training image and the target image horizontally
         concat_xy = np.hstack((x_img, y_img))
-        # concatenate vertically the training image/target and the current parameter bar image
-        return np.vstack((concat_xy, params_img))
+        # concatenate vertically with parameter bar image
+        gui_img = np.vstack((concat_xy, params_img))
+        return gui_img
 
     def run(self):
         """
-        Run the gui until exit it
+        Run the gui until quit it
         """
         while True:
             # Set the window as normal
-            cv2.namedWindow('Manual Segmentation', cv2.WINDOW_NORMAL)
-            cv2.setMouseCallback('Manual Segmentation', self._click_event)
+            cv2.namedWindow("GUI", cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback("GUI", self.click_event)
 
             # Set the window in full screen
-            cv2.setWindowProperty('Manual Segmentation', 1, 1)
+            cv2.setWindowProperty("GUI", 1, 1)
             # Display the current gui frame
-            cv2.imshow('Manual Segmentation', self._get_frame())
+            cv2.imshow("GUI", self.get_frame())
 
             # Continuously wait for a pressed key
-            key = cv2.waitKeyEx(1)
+            key = cv2.waitKey(1) & 0xFF
+
             # activate/deactivate the zoom in the gui and its factor
-            if key == ord("z") or key == ord("Z"):
+            if key == keys.zoom:
                 # Switch between zoom factors
-                self._zoom_factor = 1 + self._zoom_factor % 5
-            # if the enter key is pressed for a potential unlimited contour target, draw it from references points
-            if key == 13 and not self._types[self._channel] and len(self._ref_p):
-                self._draw_poly()
-            # remove the last references points by pressing the return key
-            elif key == 8:
-                if len(self._ref_p):
-                    self._ref_p = self._ref_p[:-1]
-                else:
-                    self._ref_p = []
-            # go to the next image if the right or up arrow is pressed
-            elif key == 2555904 or key == 2490368:
-                self._update_image(1)
-            # go to the previous image if the left or down arrow is pressed
-            elif key == 2424832 or key == 2621440:
-                self._update_image(-1)
-            # delete the current image and its target by
-            elif key == 3014656:
-                import time
-                # avoid to delete two or more training samples at each time
-                time.sleep(0.2)
-                self._delete()
+                self.zoom_factor = 1 + self.zoom_factor % 5
+            # if the enter key is pressed for an unlimited contour target
+            # draw it from references points
+            if key == keys.validate and not self.types[self.channel]:
+                self.set_poly()
+            # remove the last reference point by pressing the return key
+            elif key == keys.undo:
+                self.ref_p = self.ref_p[:-1] if len(self.ref_p) else []
+            # activate/deactivate the brush eraser
+            elif key == keys.brush:
+                self.brush = not self.brush
+            # go to the next image
+            elif key == keys.next_image:
+                self.update_image(1)
+            # go to the previous image
+            elif key == keys.previous_image:
+                self.update_image(-1)
+            # go to the next channel
+            elif key == keys.next_channel:
+                self.update_channel(1)
+            # go to the previous channel
+            elif key == keys.previous_channel:
+                self.update_channel(-1)
+            # delete the current image and its target
+            elif key == keys.delete:
+                self.delete()
             # exit the gui if the 'q' key is pressed
-            elif key == ord("q") or key == ord("Q"):
+            elif key == keys.quit:
                 # think to save before to quit
-                self._save()
+                self.save()
                 break
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     ms = ManualSegmentation(args.x_save_dir, args.y_save_dir, args.config_path)
     ms.run()
+
+
