@@ -77,6 +77,6 @@ keys = {
 keys = objectview(keys)
 ```
 
-You can changes theses values according to the [https://www.asciitable.xyz/](ASCII table).
-You can see that I had created an `objectview()` class. It permits to have a more lisible script, transforming the dictionnary into an object and attributes. It replaces the access from ```python keys['next_image']``` to ```python keys.next_image``` for example.
+You can changes theses values according to the ![https://www.asciitable.xyz/](ASCII table).
+You can see that I had created an `objectview()` class. It permits to have a more lisible script, transforming the dictionnary into an object and attributes. It replaces the access from `keys['next_image']` to `keys.next_image` for example.
 
