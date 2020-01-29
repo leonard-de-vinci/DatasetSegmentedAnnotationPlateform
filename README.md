@@ -39,7 +39,7 @@ foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
 
 ## COMMANDS
 
-![commands.jpg](commands.jpg)
+![command.jpg](command.jpg)
 
 - **Left button pressed on image area :** reference a point on the current class channel
 - **Return button :** undo the last reference point
