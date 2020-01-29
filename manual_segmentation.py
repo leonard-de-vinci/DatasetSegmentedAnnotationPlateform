@@ -251,7 +251,20 @@ class ManualSegmentation:
                         elif self.types[self.channel] == len(self.ref_p):
                             self.set_poly()
 
+    def set_pixel(self):
+        """
+        Set value to 1 at the mouse position in the case of `1` draw type
+        """
+        # draw the pixel according at the mouse position
+        x, y = self.mouse_pos
+        self.Y[y, x, self.channel] = 1
+
+
     def set_brush_eraser(self):
+        """
+        Erase the target image
+        according to the brush size and the mouse position
+        """
         # get the mouse position on the image
         x, y = self.mouse_pos
         x = x % self.X.shape[1]
@@ -264,11 +277,6 @@ class ManualSegmentation:
                 if not 0 <= y + dy < self.Y.shape[0]:
                     continue
                 self.Y[y + dy, x + dx, self.channel] = 0
-
-    def set_pixel(self):
-        # draw the pixel according at the mouse position
-        x, y = self.mouse_pos
-        self.Y[y, x, self.channel] = 1
 
     def set_poly(self):
         """
@@ -619,5 +627,6 @@ class ManualSegmentation:
 if __name__ == "__main__":
     ms = ManualSegmentation(args.x_save_dir, args.y_save_dir, args.config_path)
     ms.run()
+
 
 
