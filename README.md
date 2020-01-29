@@ -41,15 +41,16 @@ foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
 
 ![command.jpg](command.jpg)
 
-- **Left button pressed on image area :** reference a point on the current class channel
-- **Return button :** undo the last reference point
-- **Rigth button (kept) pressed :** erase with the brush on the current class channel
-- **Middle mouse scroll :** navigate between class channels
-- **Middle mouse pressed and scroll :** navigate between samples
-- **← or ↓ arrow :** go to the previous sample
-- **→ or ↑ arrow :** go to the next sample
-- **Suppr :** delete the current sample
-- **Z button :** navigate between zoom modes (No zoom, x2, x3, x4, x5)
-- **Q button :** exit the program
+- **Left button :** reference a point on the current class channel or erase if the brush eraser is activated
+- **Enter key :** validate the current references points in the case of type >= 3
+- **U key :** undo the last reference point
+- **B key:** activate/deactivate the brush eraser
+- **E key :** go to the next class channels
+- **D key :** go to the previous class channels
+- **F key :** go to the next image/target
+- **S key :** go to the previous image/target
+- **Z key :** navigate between zoom modes (No zoom, x2, x3, x4, x5)
+- **Return key :** delete the current sample
+- **Q key :** exit the program
 
 
