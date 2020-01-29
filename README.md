@@ -53,4 +53,29 @@ foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
 - **Return key :** delete the current sample
 - **Q key :** exit the program
 
+As you can see I choose my keys according to my AZERTY keyboard and my personnal choices. You can change by yourself the shortcuts. At the top of the `manual_segmentation.py file` I set a dictionnary of keys to run the program.
+`python
+class objectview(object):
+    def __init__(self, d):
+        self.__dict__ = d
+
+
+keys = {
+    'next_channel': ord('e'),           # ASCII number = 101
+    'previous_channel': ord('d'),       # ASCII number = 100
+    'next_image': ord('f'),             # ASCII number = 102
+    'previous_image': ord('s'),         # ASCII number = 115
+    'zoom': ord('z'),                   # ASCII number = 122
+    'validate': 13,                     # ASCII number = 13
+    'undo': ord('u'),                   # ASCII number = 117
+    'brush': ord('b'),                  # ASCII number = 98
+    'delete': 8,                        # ASCII number = 8
+    'quit': ord('q')                    # ASCII number = 113
+}
+
+# to transform the dictionary into an object
+keys = objectview(keys)
+`
+You can changes theses values according to the [https://www.asciitable.xyz/](ASCII table).
+You can see that I had created an `objectview()` class. It permits to have a more lisible script, transforming the dictionnary into an object and attributes. It replaces the access from `keys['` to `` for example.
 
