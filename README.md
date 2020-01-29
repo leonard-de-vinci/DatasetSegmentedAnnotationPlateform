@@ -15,7 +15,7 @@ Build your config.csv file to parameter your different classes
 
 - **class column :** name of the class you want to define
 - **bgr_color column :** the color you wnat to display your class in BGR format
-- **type column :** the type of drawing 
+- **shape column :** the shape of drawing 
   - **0 :** draw a polygone area by placing countour points (Then press enter to validate)
   - **1 :** pixel by pixel drawing
   - **2 :** draw filled circles by selecting two point on it
@@ -23,7 +23,7 @@ Build your config.csv file to parameter your different classes
 
 My config.csv file to segment a pool table environment is the following
 
-| **class** | **bgr_color**  | **type** |
+| **class** | **bgr_color**  | **shape** |
 | :---:   | :-: | :-: |
 | Cue Stick | #004080 | 0 |
 | Red Ball | #0000FF | 2 |
