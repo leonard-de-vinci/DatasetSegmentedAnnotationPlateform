@@ -540,7 +540,7 @@ class ManualSegmentation:
         y_img = self.get_y_image()
         # apply a filter to see the training image
         # behind the colorized training target matrix
-        alpha = 0
+        alpha = 0.3
         y_img = cv2.addWeighted(x_img, alpha, y_img, 1 - alpha, 0)
         params_img = self.get_params_image()
 
