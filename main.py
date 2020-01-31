@@ -322,6 +322,27 @@ class ManualSegmentation:
                 self.Y[y + dy, x + dx, self.channel] = 0
 
 
+    def draw_poly_visualization(self, x_img, y_img, color):
+        """
+        Draw the lines in the case of polygones to visualize it
+        :param x_img: input image
+        :param x_img: colorized target image
+        :param color: color of the current channel
+        """
+        # draw a line between the first reference point and the mouse pos
+        cv2.line(x_img, tuple(self.mouse_pos), tuple(self.ref_p[0]), color, 1)
+        cv2.line(y_img, tuple(self.mouse_pos), tuple(self.ref_p[0]), color, 1)
+        # draw a line between the reference points
+        for i  in range(len(self.ref_p) - 1):
+            cv2.line(x_img, tuple(self.ref_p[i]), tuple(self.ref_p[i + 1]), color, 1)
+            cv2.line(y_img, tuple(self.ref_p[i]), tuple(self.ref_p[i + 1]), color, 1)
+        # draw a line between the last reference point and the mouse pos
+        cv2.line(x_img, tuple(self.mouse_pos), tuple(self.ref_p[-1]), color, 1)
+        cv2.line(y_img, tuple(self.mouse_pos), tuple(self.ref_p[-1]), color, 1)
+
+
+
+
     def draw_circle_visualization(self, x_img, y_img, color):
         """
         Draw the circle in the case of `2` draw typ to visiualize the circle
@@ -339,6 +360,7 @@ class ManualSegmentation:
         # draw the circle to visualize the rendered segmented circle
         cv2.circle(x_img, (cx, cy), int(r), color, 1)
         cv2.circle(y_img, (cx, cy), int(r), color, 1)
+
 
     def draw_brush(self, x_img, y_img, color):
         """
@@ -555,6 +577,9 @@ class ManualSegmentation:
         # and there is one ref point
         if self.shapes[self.channel] == 2 and len(self.ref_p):
             self.draw_circle_visualization(x_img, y_img, color)
+        # draw the polygone if it is the channel mode shape
+        elif self.shapes[self.channel] != 1 and len(self.ref_p):
+            self.draw_poly_visualization(x_img, y_img, color)
 
         # draw the brush if the right mouse button is pressed
         if self.brush:
