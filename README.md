@@ -33,7 +33,7 @@ My config.csv file to segment a pool table environment is the following
 ## Run the interface
 
 ```console
-foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
+foo@bar:~$ python main.py train_sample target_sample config.csv
 ```
 
 
@@ -53,7 +53,7 @@ foo@bar:~$ python manual_segmentation.py train_sample target_sample config.csv
 - **Return key :** delete the current sample
 - **Q key :** exit the program
 
-As you can see I choose my keys according to my AZERTY keyboard and my personnal wishes. You can change by yourself the shortcuts. At the top of the `manual_segmentation.py` file I set a dictionnary of keys to run the program.
+As you can see I choose my keys according to my AZERTY keyboard and my personnal wishes. You can change by yourself the shortcuts. At the top of the `main.py` file I set a dictionnary of keys to run the program.
 ```python
 class objectview(object):
     def __init__(self, d):
