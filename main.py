@@ -1,3 +1,15 @@
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+User friendly interface to manually segment images
+"""
+
+__author__ = 'Axel Thevenot'
+__version__ = '2.1.0'
+__maintainer__ = 'Axel Thevenot'
+__email__ = 'axel.thevenot@edu.devinci.fr'
+
 import os
 import glob
 import argparse
